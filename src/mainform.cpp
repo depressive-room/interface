@@ -6,6 +6,9 @@
 #include <QtNetwork/QNetworkReply>
 #include <QRegExpValidator>
 
+#include "parser.h"
+#include "parsernode.hpp"
+
 namespace Browser
 {
 
@@ -22,7 +25,7 @@ namespace Browser
     //{3}(?!0|255)[0-9]{1,3})(?:/[a-z0-9.,_@%&?+=\~/-]*)?(?:#[^ '\"&]*)?$~i
     //Установить валидатор на строку ввода URL
     //    QString regexp= "~^(?:(?:https?|ftp|telnet)://(?:[a-z0-9_-]{1,32}(?::[a-z0-9_-]{1,32})?@)?)?(?:(?:[a-z0-9-]{1,128}\.)+(?:ru|su|com|net|org|mil|edu|arpa|gov|biz|info|aero|inc|name|[a-z]{2})|(?!0)(?:(?!0[^.]|255)[0-9]{1,3}\.){3}(?!0|255)[0-9]{1,3})(?:/[a-z0-9.,_@%&?+=\~/-]*)?(?:#[^ '\"&]*)?$~i";
-    QString regexp = "((?:https?|ftp)://\\S+)";
+    QString regexp = "((?:https?|ftp|file)://\\S+)";
     //    QRegExp rx("((?:https?|ftp)://\\S+)");
     QRegExp rx(regexp);
     QValidator *validator = new QRegExpValidator(rx, this);
@@ -47,8 +50,26 @@ namespace Browser
     connect(response, &QNetworkReply::finished, &event, &QEventLoop::quit);
     event.exec();
     QString html = response->readAll();
-    html.remove(QRegExp("<[^>]*>"));
-    ui->plainTextEditContent->setPlainText(html.simplified());
-  }
+//    html.remove(QRegExp("<[^>]*>"));
+//    ui->plainTextEditContent->setPlainText(html.simplified());
+
+	// shit there
+	if(content) {
+		delete content;
+		content = nullptr;
+	}
+	if(ui->plainTextEditContent) {
+		delete ui->plainTextEditContent;
+		ui->plainTextEditContent = nullptr;
+	}
+
+	std::shared_ptr<std::string> input = std::make_shared<std::string>(html.toUtf8().constData());
+	Parser::Tree tree = Parser::parse(input);
+	Parser::Tree::Tag root = boost::get<Parser::Tree::Tag>(tree.root);
+
+    content = Render::render(tree.root);
+
+	ui->verticalLayout->addWidget(content);
+ }
 
 } // namespace Browser
